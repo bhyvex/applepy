@@ -11,6 +11,14 @@ import sys
 import time
 
 
+def clamp(val, min, max):
+    if val < min:
+        val = min
+    elif val > max:
+        val = max
+    return val
+
+
 class Display:
     
     characters = [
@@ -288,12 +296,18 @@ class Speaker:
             self.play()
 
 
+class Paddle:
+    def __init__(self):
+        self.pos = 0
+        self.button = 0
+
 class SoftSwitches:
     
     def __init__(self, display, speaker):
         self.kbd = 0x00
         self.display = display
         self.speaker = speaker
+        self.paddle = [Paddle(), Paddle()]
     
     def read_byte(self, cycle, address):
         assert 0xC000 <= address <= 0xCFFF
@@ -320,6 +334,10 @@ class SoftSwitches:
             self.display.lores()
         elif address == 0xC057:
             self.display.hires()
+        elif address == 0xC061:
+            return self.paddle[0].pos | (0x80 if self.paddle[0].button else 0)
+        elif address == 0xC062:
+            return self.paddle[1].pos | (0x80 if self.paddle[1].button else 0)
         else:
             pass # print "%04X" % address
         return 0x00
@@ -375,6 +393,15 @@ class Apple2:
                         if key == 0x7F:
                             key = 0x08
                         self.softswitches.kbd = 0x80 + key
+                elif event.type == pygame.MOUSEMOTION:
+                    for i in range(2):
+                        self.softswitches.paddle[i].pos = clamp(self.softswitches.paddle[i].pos + event.rel[i], 0, 127)
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    if event.button in (1, 2):
+                        self.softswitches.paddle[event.button - 1].button = True
+                elif event.type == pygame.MOUSEBUTTONUP:
+                    if event.button in (1, 2):
+                        self.softswitches.paddle[event.button - 1].button = False
             
             update_cycle += 1
             if update_cycle >= 1024:
