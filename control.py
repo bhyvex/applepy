@@ -125,7 +125,7 @@ def cmd_status(a):
 
 def cmd_quit(a):
     """Quit"""
-    sys.exit(0)
+    post("/quit")
 
 def cmd_reset(a):
     """Reset"""
