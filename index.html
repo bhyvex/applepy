@@ -1,0 +1,175 @@
+<html>
+<head>
+<title>ApplePy CPU</title>
+<style type="text/css">
+    #memory_dump {
+        font-family: monospace;
+    }
+    #disassemble_dump {
+        font-family: monospace;
+    }
+</style>
+<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.js"></script>
+<script type="text/javascript">
+    function hex(value, digits) {
+        var r = value.toString(16);
+        while (r.length < digits) {
+            r = "0" + r;
+        }
+        return r.toUpperCase();
+    }
+
+    function update_registers(status) {
+        $("#A").text(hex(status.accumulator, 2));
+        $("#X").text(hex(status.x_index, 2));
+        $("#Y").text(hex(status.y_index, 2));
+        $("#S").text(hex(status.stack_pointer, 2));
+        $("#PC").text(hex(status.program_counter, 4));
+        $("#F_N").text(status.sign_flag ? "N" : "n");
+        $("#F_V").text(status.overflow_flag ? "V" : "v");
+        $("#F_B").text(status.break_flag ? "B" : "b");
+        $("#F_D").text(status.decimal_mode_flag ? "D" : "d");
+        $("#F_I").text(status.interrupt_disable_flag ? "I" : "i");
+        $("#F_Z").text(status.zero_flag ? "Z" : "z");
+        $("#F_C").text(status.carry_flag ? "C" : "c");
+    }
+
+    function update_memory(addr, memory) {
+        var dump = "";
+        for (var i = 0; i < memory.length; i += 16) {
+            dump += hex(addr + i, 4) + " ";
+            for (var j = 0; j < 16; j++) {
+                dump += hex(memory[i + j], 2) + " ";
+            }
+            dump += "  ";
+            for (j = 0; j < 16; j++) {
+                var c = memory[i + j];
+                c &= 0x3f;
+                if (c < 0x20) {
+                    c += 0x40;
+                }
+                if (c > 0x20 && c < 0x7f) {
+                    dump += String.fromCharCode(c);
+                } else {
+                    dump += ".";
+                }
+            }
+            dump += "<br>";
+        }
+        $("#memory_dump").html(dump);
+    }
+
+    function update_disassemble(disasm) {
+        var dis = "<table>";
+        for (var i = 0; i < disasm.length; i++) {
+            dis += "<tr>";
+            dis += "<td>" + hex(disasm[i].address, 4) + "</td>";
+            for (var j = 0; j < 3; j++) {
+                if (j < disasm[i].bytes.length) {
+                    dis += "<td>" + hex(disasm[i].bytes[j], 2) + "</td>";
+                } else {
+                    dis += "<td></td>";
+                }
+            }
+            dis += "<td>" + disasm[i].mnemonic + "</td>";
+            if (disasm[i].operand) {
+                dis += "<td>" + disasm[i].operand + "</td>";
+                if (disasm[i].memory) {
+                    dis += "<td>[" + hex(disasm[i].memory[0], 4) + "] = " + hex(disasm[i].memory[2], disasm[i].memory[1] * 2) + "</td>";
+                }
+            }
+            dis += "</tr>";
+        }
+        dis += "</table>";
+        $("#disassemble_dump").html(dis);
+    }
+
+    function do_reset() {
+        jQuery.ajax({
+            type: "POST",
+            url: "/reset"
+        });
+    }
+
+    function do_quit() {
+        jQuery.ajax({
+            type: "POST",
+            url: "/quit"
+        });
+    }
+
+    function do_memory() {
+        var addr = parseInt($("#memory_addr").val(), 16);
+        jQuery.ajax({
+            url: "/memory/" + addr + "-" + (addr + 255),
+            success: function(memory) { update_memory(addr, memory) },
+            dataType: "json"
+        });
+    }
+
+    function do_disassemble() {
+        var addr = parseInt($("#disassemble_addr").val(), 16);
+        jQuery.ajax({
+            url: "/disassemble/" + addr,
+            success: update_disassemble,
+            dataType: "json"
+        });
+    }
+
+    function update() {
+        jQuery.ajax({
+            url: "/status",
+            success: update_registers,
+            dataType: "json"
+        });
+        setTimeout(update, 1000);
+    }
+
+    $(document).ready(function() {
+        $("#do_reset").click(do_reset);
+        $("#do_quit").click(do_quit);
+        $("#do_memory").click(do_memory);
+        $("#do_disassemble").click(do_disassemble);
+        update();
+    });
+</script>
+</head>
+<body>
+
+<h1>ApplePy CPU</h1>
+
+<div id="registers">
+A=<span id="A">00</span>
+X=<span id="X">00</span>
+Y=<span id="Y">00</span>
+S=<span id="S">00</span>
+PC=<span id="PC">0000</span>
+F=
+  <span id="F_N">n</span>
+  <span id="F_V">v</span>
+  <span id="F_B">b</span>
+  <span id="F_D">d</span>
+  <span id="F_I">i</span>
+  <span id="F_Z">z</span>
+  <span id="F_C">c</span>
+</div>
+
+<input id="do_reset" type="button" value="Reset" />
+<input id="do_quit" type="button" value="Quit" />
+
+<hr />
+
+<div id="memory">
+<input id="memory_addr" /><input id="do_memory" type="button" value="Dump" />
+<div id="memory_dump"></div>
+</div>
+
+<hr />
+
+<div id="disassembly">
+<input id="disassemble_addr" /><input id="do_disassemble" type="button" value="Disassemble" />
+<div id="disassemble_dump"></div>
+</div>
+
+</body>
+</html>

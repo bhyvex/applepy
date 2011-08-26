@@ -372,6 +372,7 @@ class ControlHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         self.disassemble = Disassemble(self.cpu, self.cpu.memory)
 
         self.get_urls = {
+            r"/$": self.get_index,
             r"/disassemble/(\d+)$": self.get_disassemble,
             r"/memory/(\d+)(-(\d+))?$": self.get_memory,
             r"/memory/(\d+)(-(\d+))?/raw$": self.get_memory_raw,
@@ -422,6 +423,9 @@ class ControlHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             addr += length
             n -= 1
         self.response(json.dumps(r))
+
+    def get_index(self, m):
+        self.response(open("index.html").read())
 
     def get_memory_raw(self, m):
         addr = int(m.group(1))
